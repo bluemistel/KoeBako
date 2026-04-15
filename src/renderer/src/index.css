@@ -1,0 +1,262 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Theme variables ─────────────────────────────────────────────────────── */
+
+:root {
+  /* Dark theme (default) — space-separated RGB for Tailwind opacity support */
+  --color-bg-base:       9 9 15;
+  --color-bg-surface:    19 19 28;
+  --color-bg-elevated:   26 26 38;
+  --color-bg-card:       31 31 46;
+  --color-bg-hover:      37 37 56;
+  --color-bg-border:     42 42 62;
+
+  --color-accent:        124 58 237;
+  --color-accent-light:  157 99 245;
+  --color-accent-dark:   109 40 217;
+  --color-accent-muted:  59 31 110;
+
+  --color-success:       16 185 129;
+  --color-warning:       245 158 11;
+  --color-danger:        239 68 68;
+
+  --color-txt-primary:   241 245 249;
+  --color-txt-secondary: 148 163 184;
+  --color-txt-muted:     100 116 139;
+  --color-txt-disabled:  51 65 85;
+
+  --color-commercial:    245 158 11;
+  --color-original:      16 185 129;
+
+  /* Misc non-Tailwind colors */
+  --scrollbar-track:     rgb(19 19 28);
+  --scrollbar-thumb:     rgb(42 42 62);
+  --scrollbar-thumb-hv:  rgb(61 61 88);
+  --playing-bar-color:   rgb(157 99 245);
+  --wave-bg:             rgb(26 26 38);
+  --wave-progress:       rgb(124 58 237);
+  --wave-cursor:         rgb(157 99 245);
+  --range-thumb-bg:      rgb(157 99 245);
+}
+
+.light {
+  --color-bg-base:       248 250 252;
+  --color-bg-surface:    241 245 249;
+  --color-bg-elevated:   226 232 240;
+  --color-bg-card:       255 255 255;
+  --color-bg-hover:      203 213 225;
+  --color-bg-border:     203 213 225;
+
+  --color-accent:        124 58 237;
+  --color-accent-light:  109 40 217;
+  --color-accent-dark:   91 33 182;
+  --color-accent-muted:  237 233 254;
+
+  --color-success:       5 150 105;
+  --color-warning:       217 119 6;
+  --color-danger:        220 38 38;
+
+  --color-txt-primary:   15 23 42;
+  --color-txt-secondary: 71 85 105;
+  --color-txt-muted:     100 116 139;
+  --color-txt-disabled:  203 213 225;
+
+  --color-commercial:    217 119 6;
+  --color-original:      5 150 105;
+
+  --scrollbar-track:     rgb(241 245 249);
+  --scrollbar-thumb:     rgb(203 213 225);
+  --scrollbar-thumb-hv:  rgb(148 163 184);
+  --playing-bar-color:   rgb(124 58 237);
+  --wave-bg:             rgb(226 232 240);
+  --wave-progress:       rgb(124 58 237);
+  --wave-cursor:         rgb(109 40 217);
+  --range-thumb-bg:      rgb(124 58 237);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background-color: rgb(var(--color-bg-base));
+    color: rgb(var(--color-txt-primary));
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hv);
+  }
+}
+
+/* ── Components ──────────────────────────────────────────────────────────── */
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+           transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-dark active:scale-95;
+  }
+
+  .btn-secondary {
+    @apply btn bg-bg-elevated text-txt-secondary hover:bg-bg-hover hover:text-txt-primary
+           border border-bg-border active:scale-95;
+  }
+
+  .btn-ghost {
+    @apply btn text-txt-secondary hover:bg-bg-elevated hover:text-txt-primary active:scale-95;
+  }
+
+  .btn-danger {
+    @apply btn bg-danger/20 text-danger hover:bg-danger/30 active:scale-95;
+  }
+
+  .input {
+    @apply w-full px-3 py-1.5 rounded-md bg-bg-card border border-bg-border text-txt-primary
+           text-sm placeholder:text-txt-muted
+           focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/30
+           transition-colors;
+  }
+
+  select.input {
+    /* prevent Windows Segoe UI font descenders from being clipped */
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    line-height: 1.5;
+  }
+
+  .tag-chip {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium
+           transition-all duration-150;
+  }
+
+  .sidebar-item {
+    @apply flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-txt-secondary
+           hover:bg-bg-elevated hover:text-txt-primary transition-colors cursor-pointer;
+  }
+
+  .sidebar-item.active {
+    @apply bg-accent/20 text-accent-light;
+  }
+
+  .panel {
+    @apply bg-bg-surface border-r border-bg-border;
+  }
+
+  .voice-row {
+    @apply flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer
+           hover:bg-bg-elevated transition-colors duration-100;
+  }
+
+  .voice-row.selected {
+    @apply bg-accent/10 ring-1 ring-inset ring-accent/30;
+  }
+
+  .voice-row.playing {
+    @apply bg-accent/15 ring-1 ring-inset ring-accent/40;
+  }
+}
+
+/* WaveSurfer overrides */
+.waveform-container wave {
+  overflow: hidden !important;
+}
+
+/* Drag & drop highlight */
+.drop-zone-active {
+  @apply border-accent bg-accent/10;
+}
+
+/* Custom range slider */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-track {
+  background: var(--scrollbar-thumb);
+  height: 3px;
+  border-radius: 2px;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--range-thumb-bg);
+  margin-top: -4.5px;
+  transition: transform 0.1s;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+input[type='range'].progress-bar::-webkit-slider-track {
+  background: linear-gradient(
+    to right,
+    var(--wave-progress) var(--progress, 0%),
+    var(--scrollbar-thumb) var(--progress, 0%)
+  );
+}
+
+/* Animations */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+/* Playing indicator */
+.playing-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.playing-bars span {
+  width: 3px;
+  background: var(--playing-bar-color);
+  border-radius: 1px;
+  animation: bar-bounce 0.8s ease-in-out infinite;
+}
+
+.playing-bars span:nth-child(2) { animation-delay: 0.15s; }
+.playing-bars span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes bar-bounce {
+  0%, 100% { height: 4px; }
+  50% { height: 14px; }
+}

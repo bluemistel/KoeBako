@@ -1,0 +1,19 @@
+node_modules/
+out/
+dist/
+.DS_Store
+*.log
+npm-debug.log*
+
+# electron-builder output
+release/
+
+# local env files
+.env
+.env.local
+
+# Editor
+.vscode/
+.idea/
+*.suo
+*.user
