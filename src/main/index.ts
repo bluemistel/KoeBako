@@ -8,7 +8,7 @@ import { registerIpcHandlers } from './ipc'
 // Register custom protocol for serving local audio files
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: 'voicelab-file',
+    scheme: 'koebako-file',
     privileges: {
       secure: true,
       supportFetchAPI: true,
@@ -63,10 +63,10 @@ function createWindow(): void {
 }
 
 app.whenReady().then(async () => {
-  electronApp.setAppUserModelId('com.voicelab')
+  electronApp.setAppUserModelId('com.koebako')
 
   // Handle custom file protocol
-  protocol.handle('voicelab-file', (request) => {
+  protocol.handle('koebako-file', (request) => {
     const url = new URL(request.url)
     // Reconstruct the path from hostname + pathname (for Windows drive letters)
     let filePath = decodeURIComponent(url.pathname)

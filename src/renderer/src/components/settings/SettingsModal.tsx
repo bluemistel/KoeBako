@@ -340,7 +340,7 @@ export default function SettingsModal() {
                 </div>
                 <p className="text-sm text-txt-muted leading-relaxed">
                   不具合や改善要望は以下のフォームからご報告ください。
-                  皆さまのフィードバックが VOICELab. の改善に役立ちます。
+                  皆さまのフィードバックが こえばこ の改善に役立ちます。
                 </p>
                 <div className="bg-bg-elevated rounded-lg p-4 space-y-3">
                   <p className="text-xs text-txt-muted">報告フォーム（Notion）</p>

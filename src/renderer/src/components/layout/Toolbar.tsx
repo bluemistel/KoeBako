@@ -1,4 +1,5 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState } from 'react'
+import iconUrl from '../../../../../resources/icon.png'
 import {
   Search,
   Upload,
@@ -66,10 +67,8 @@ export default function Toolbar() {
     >
       {/* App title */}
       <div className="flex items-center gap-2 mr-2" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-        <div className="w-6 h-6 rounded bg-accent flex items-center justify-center">
-          <span className="text-white text-xs font-bold">V</span>
-        </div>
-        <span className="text-sm font-semibold text-txt-primary tracking-wide">VOICELab.</span>
+        <img src={iconUrl} alt="こえばこ" className="w-6 h-6 rounded object-contain" />
+        <span className="text-sm font-semibold text-txt-primary tracking-wide">こえばこ</span>
       </div>
 
       {/* Search bar */}

@@ -74,8 +74,8 @@ export function useAudioPlayer() {
     const loadAndPlay = async () => {
       try {
         const absPath = await window.api.getAbsolutePath(currentVoice.file_path)
-        // Convert path to voicelab-file:// protocol URL
-        const fileUrl = pathToVoicelabUrl(absPath)
+        // Convert path to koebako-file:// protocol URL
+        const fileUrl = pathToKoebakoUrl(absPath)
         audio.src = fileUrl
         audio.volume = volume
         await audio.play()
@@ -121,10 +121,10 @@ export function useAudioPlayer() {
   return { audioRef, seek, togglePlay }
 }
 
-function pathToVoicelabUrl(absolutePath: string): string {
-  // Convert Windows path like C:\foo\bar.wav to voicelab-file:///C:/foo/bar.wav
+function pathToKoebakoUrl(absolutePath: string): string {
+  // Convert Windows path like C:\foo\bar.wav to koebako-file:///C:/foo/bar.wav
   const normalized = absolutePath.replace(/\\/g, '/')
-  return `voicelab-file:///${encodeURIComponent(normalized).replace(/%2F/g, '/').replace(/%3A/g, ':')}`
+  return `koebako-file:///${encodeURIComponent(normalized).replace(/%2F/g, '/').replace(/%3A/g, ':')}`
 }
 
 export function useWaveSurfer(

@@ -1,8 +1,8 @@
 {
-  "name": "voicelab",
-  "displayName": "VOICELab.",
+  "name": "koebako",
+  "displayName": "こえばこ",
   "version": "1.0.0",
-  "description": "音声ファイル管理アプリ - VOICEROID2 / exVOICE・自作音声 一元管理システム",
+  "description": "声匣 - こえばこ - 音声ファイル管理アプリ",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -39,8 +39,9 @@
     "typescript": "^5.4.2"
   },
   "build": {
-    "appId": "com.voicelab.app",
-    "productName": "VOICELab.",
+    "appId": "com.koebako.app",
+    "productName": "こえばこ",
+    "icon": "resources/icon.png",
     "directories": {
       "buildResources": "resources"
     },

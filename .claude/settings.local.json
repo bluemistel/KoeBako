@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm show:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh auth:*)",
+      "Bash(where gh:*)",
+      "Read(//c/Users/skki7/AppData/Local/**)",
+      "Bash(curl --version)",
+      "Bash(git init:*)",
+      "Bash(git config:*)"
+    ]
+  }
+}

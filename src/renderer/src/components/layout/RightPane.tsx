@@ -105,7 +105,7 @@ export default function RightPane() {
     const load = async () => {
       try {
         const absPath = await window.api.getAbsolutePath(voice.file_path)
-        const fileUrl = absPathToVoicelabUrl(absPath)
+        const fileUrl = absPathToKoebakoUrl(absPath)
         ws.load(fileUrl)
       } catch (e) {
         console.error('Waveform load error:', e)
@@ -810,7 +810,7 @@ function StatItem({
   )
 }
 
-function absPathToVoicelabUrl(absolutePath: string): string {
+function absPathToKoebakoUrl(absolutePath: string): string {
   const normalized = absolutePath.replace(/\\/g, '/')
-  return `voicelab-file:///${encodeURIComponent(normalized).replace(/%2F/g, '/').replace(/%3A/g, ':')}`
+  return `koebako-file:///${encodeURIComponent(normalized).replace(/%2F/g, '/').replace(/%3A/g, ':')}`
 }
