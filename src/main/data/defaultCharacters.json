@@ -1,0 +1,42 @@
+[
+  {
+    "name": "結月ゆかり",
+    "aliases": ["ゆかり", "yukari"],
+    "color": "#9d63f5"
+  },
+  {
+    "name": "紲星あかり",
+    "aliases": ["あかり", "akari"],
+    "color": "#f5bc43"
+  },
+  {
+    "name": "琴葉茜",
+    "aliases": ["茜", "akane"],
+    "color": "#ef4444"
+  },
+  {
+    "name": "琴葉葵",
+    "aliases": ["葵", "aoi"],
+    "color": "#3b82f6"
+  },
+  {
+    "name": "東北ずん子",
+    "aliases": ["ずん子", "zunko"],
+    "color": "#44ef50"
+  },
+  {
+    "name": "東北きりたん",
+    "aliases": ["きりたん", "kiritan"],
+    "color": "#ff9016"
+  },
+  {
+    "name": "彩澄しゅお",
+    "aliases": ["しゅお", "shuo"],
+    "color": "#ca5078"
+  },
+  {
+    "name": "彩澄りりせ",
+    "aliases": ["りりせ", "ririse"],
+    "color": "#005d98"
+  }
+]

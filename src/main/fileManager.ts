@@ -6,7 +6,7 @@ import { getAllCharacterNames } from './db'
 export const SUPPORTED_EXTENSIONS = new Set(['.wav', '.mp3', '.ogg', '.flac', '.m4a', '.aac'])
 
 export function getDefaultManagedFolder(): string {
-  return path.join(os.homedir(), 'Documents', 'VoiceManager')
+  return path.join(os.homedir(), 'Documents', 'KoeBako')
 }
 
 export function ensureManagedFolderStructure(managedFolder: string): void {

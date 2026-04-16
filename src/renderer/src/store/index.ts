@@ -64,6 +64,9 @@ declare global {
       getAbsolutePath: (relPath: string) => Promise<string>
       exportFiles: (ids: number[]) => Promise<{ success: number; errors: string[] }>
       getManagedFolder: () => Promise<string>
+      moveManagedFolder: (oldFolder: string, newFolder: string) => Promise<{ success: number; errors: string[] }>
+      countManagedFiles: (folder: string) => Promise<number>
+      onMoveProgress: (cb: (progress: { done: number; total: number }) => void) => () => void
       startNativeDrag: (relPath: string) => void
       openExternal: (url: string) => Promise<void>
       getVersion: () => Promise<string>

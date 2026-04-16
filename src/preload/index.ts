@@ -75,6 +75,14 @@ const api = {
   getAbsolutePath: (relPath: string) => ipcRenderer.invoke('fs:getAbsolutePath', relPath),
   exportFiles: (voiceIds: number[]) => ipcRenderer.invoke('fs:exportFiles', voiceIds),
   getManagedFolder: () => ipcRenderer.invoke('fs:getManagedFolder'),
+  moveManagedFolder: (oldFolder: string, newFolder: string) =>
+    ipcRenderer.invoke('fs:moveManagedFolder', oldFolder, newFolder),
+  countManagedFiles: (folder: string) => ipcRenderer.invoke('fs:countManagedFiles', folder),
+  onMoveProgress: (cb: (progress: { done: number; total: number }) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, progress: { done: number; total: number }) => cb(progress)
+    ipcRenderer.on('fs:moveProgress', handler)
+    return () => ipcRenderer.removeListener('fs:moveProgress', handler)
+  },
 
   // Native drag — sendSync ensures startDrag is called within the OS drag-event window
   startNativeDrag: (relPath: string) => ipcRenderer.sendSync('nativeDrag:start', relPath),

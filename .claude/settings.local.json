@@ -12,7 +12,12 @@
       "Read(//c/Users/skki7/AppData/Local/**)",
       "Bash(curl --version)",
       "Bash(git init:*)",
-      "Bash(git config:*)"
+      "Bash(git config:*)",
+      "Bash(ls /c/AppDevelop/VOICELab/dist/*.exe)",
+      "Bash(ls /c/AppDevelop/VOICELab/dist/*.blockmap)",
+      "Bash(npx electron-vite:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)"
     ]
   }
 }

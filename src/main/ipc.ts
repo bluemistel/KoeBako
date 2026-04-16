@@ -31,6 +31,8 @@ import {
   insertUserCategory,
   updateUserCategory,
   deleteUserCategory,
+  getAllVoiceFilePaths,
+  updateVoiceFilePath,
   VoiceFilter
 } from './db'
 import {
@@ -459,6 +461,64 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('shell:openExternal', (_e, url: string) => {
     shell.openExternal(url)
+  })
+
+  // ─── Managed folder migration ─────────────────────────────────────────────────
+
+  ipcMain.handle('fs:moveManagedFolder', async (event, oldFolder: string, newFolder: string) => {
+    // Collect all files under old folder
+    const filesToMove: string[] = []
+    function collectAll(dir: string): void {
+      if (!fs.existsSync(dir)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name)
+        if (entry.isDirectory()) {
+          collectAll(full)
+        } else {
+          filesToMove.push(full)
+        }
+      }
+    }
+    collectAll(oldFolder)
+
+    const total = filesToMove.length
+    let done = 0
+    const errors: string[] = []
+
+    for (const srcPath of filesToMove) {
+      try {
+        const relPath = path.relative(oldFolder, srcPath)
+        const destPath = path.join(newFolder, relPath)
+        fs.mkdirSync(path.dirname(destPath), { recursive: true })
+        fs.copyFileSync(srcPath, destPath)
+        fs.unlinkSync(srcPath)
+      } catch (err) {
+        errors.push(`${path.basename(srcPath)}: ${err instanceof Error ? err.message : String(err)}`)
+      }
+      done++
+      event.sender.send('fs:moveProgress', { done, total })
+    }
+
+    // Update managedFolder setting (file_path values in DB are relative, no update needed)
+    setSetting('managedFolder', newFolder)
+
+    return { success: done - errors.length, errors }
+  })
+
+  ipcMain.handle('fs:countManagedFiles', (_e, folder: string) => {
+    let count = 0
+    function countFiles(dir: string): void {
+      if (!fs.existsSync(dir)) return
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          countFiles(path.join(dir, entry.name))
+        } else {
+          count++
+        }
+      }
+    }
+    countFiles(folder)
+    return count
   })
 
   ipcMain.handle('app:getVersion', () => app.getVersion())

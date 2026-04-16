@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   X,
   FolderOpen,
@@ -9,7 +9,8 @@ import {
   Upload,
   Save,
   ExternalLink,
-  Bug
+  Bug,
+  Loader2
 } from 'lucide-react'
 import { useStore } from '../../store'
 import { Character, Tag } from '../../types'
@@ -33,6 +34,8 @@ export default function SettingsModal() {
   const [continuousPlay, setContinuousPlay] = useState(settings?.continuousPlay === 'true')
   const [isSaving, setIsSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [moveProgress, setMoveProgress] = useState<{ done: number; total: number } | null>(null)
+  const moveCleanupRef = useRef<(() => void) | null>(null)
 
   // Character editing
   const [editingCharId, setEditingCharId] = useState<number | null>(null)
@@ -59,15 +62,63 @@ export default function SettingsModal() {
   }
 
   const handleSaveGeneral = async () => {
+    const currentFolder = settings?.managedFolder ?? ''
+    const newFolder = managedFolder.trim()
+    const folderChanged = newFolder && newFolder !== currentFolder
+
+    // If folder path changed, check if old folder has files to migrate
+    if (folderChanged && currentFolder) {
+      const fileCount = await window.api.countManagedFiles(currentFolder)
+      if (fileCount > 0) {
+        const doMove = confirm(
+          `管理フォルダを変更します。\n\n現在のフォルダ内の ${fileCount} 件のファイルを新しいフォルダに移動しますか？\n\n` +
+          `移動先: ${newFolder}\n\n` +
+          `「OK」で移動、「キャンセル」でパスのみ変更（ファイルは移動しません）`
+        )
+        if (doMove) {
+          await handleMoveFiles(currentFolder, newFolder)
+          return
+        }
+      }
+    }
+
     setIsSaving(true)
     await window.api.setSettings({
-      managedFolder,
+      managedFolder: newFolder || currentFolder,
       continuousPlay: String(continuousPlay)
     })
     await loadSettings()
     setIsSaving(false)
     setSaveSuccess(true)
     setTimeout(() => setSaveSuccess(false), 2000)
+  }
+
+  const handleMoveFiles = async (oldFolder: string, newFolder: string) => {
+    setIsSaving(true)
+    setMoveProgress({ done: 0, total: 0 })
+
+    // Register progress listener
+    const cleanup = window.api.onMoveProgress((p) => {
+      setMoveProgress(p)
+    })
+    moveCleanupRef.current = cleanup
+
+    try {
+      // Also save continuousPlay setting
+      await window.api.setSetting('continuousPlay', String(continuousPlay))
+      const result = await window.api.moveManagedFolder(oldFolder, newFolder)
+      if (result.errors.length > 0) {
+        console.warn('Move errors:', result.errors)
+      }
+      await loadSettings()
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 2000)
+    } finally {
+      cleanup()
+      moveCleanupRef.current = null
+      setMoveProgress(null)
+      setIsSaving(false)
+    }
   }
 
   // Characters
@@ -142,7 +193,7 @@ export default function SettingsModal() {
           </button>
         </div>
 
-        <div className="flex flex-1 overflow-hidden">
+        <div className="relative flex flex-1 overflow-hidden">
           {/* Sidebar */}
           <div className="w-40 border-r border-bg-border py-2 shrink-0">
             {tabs.map((tab) => (
@@ -155,6 +206,29 @@ export default function SettingsModal() {
               </button>
             ))}
           </div>
+
+          {/* Move progress overlay */}
+          {moveProgress !== null && (
+            <div className="absolute inset-0 bg-bg-card/95 flex flex-col items-center justify-center gap-4 z-10 rounded-b-xl">
+              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium text-txt-primary">ファイルを移動中...</p>
+                <p className="text-xs text-txt-muted">
+                  {moveProgress.total > 0
+                    ? `${moveProgress.done} / ${moveProgress.total} 件`
+                    : '準備中...'}
+                </p>
+              </div>
+              {moveProgress.total > 0 && (
+                <div className="w-64 h-1.5 bg-bg-elevated rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded-full transition-all duration-150"
+                    style={{ width: `${(moveProgress.done / moveProgress.total) * 100}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
@@ -170,7 +244,7 @@ export default function SettingsModal() {
                       type="text"
                       value={managedFolder}
                       onChange={(e) => setManagedFolder(e.target.value)}
-                      placeholder="例: C:\Users\user\Documents\VoiceManager"
+                      placeholder={`例: C:\\Users\\user\\Documents\\KoeBako`}
                       className="input flex-1 text-sm"
                     />
                     <button onClick={handleSelectFolder} className="btn-secondary shrink-0">

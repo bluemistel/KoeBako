@@ -2,6 +2,8 @@ import path from 'path'
 import fs from 'fs'
 import { app } from 'electron'
 import type SqlJs from 'sql.js'
+import defaultCharactersData from './data/defaultCharacters.json'
+import defaultSoftwaresData from './data/defaultSoftwares.json'
 
 let db: SqlJs.Database
 let SQL: SqlJs.SqlJsStatic
@@ -106,6 +108,14 @@ function createSchema(): void {
     )
   `)
 
+  // Migration: add is_default column if it doesn't exist
+  const hasIsDefault = dbAll<{ name: string }>(
+    `PRAGMA table_info(characters)`
+  ).some((col) => col.name === 'is_default')
+  if (!hasIsDefault) {
+    db.run(`ALTER TABLE characters ADD COLUMN is_default INTEGER NOT NULL DEFAULT 0`)
+  }
+
   db.run(`
     CREATE TABLE IF NOT EXISTS softwares (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -183,33 +193,36 @@ function createSchema(): void {
 }
 
 function seedDefaultData(): void {
-  const defaultCharacters = [
-    { name: '結月ゆかり', aliases: '["ゆかり","yukari"]', color: '#9d63f5' },
-    { name: '琴葉茜', aliases: '["茜","akane"]', color: '#ef4444' },
-    { name: '琴葉葵', aliases: '["葵","aoi"]', color: '#3b82f6' },
-    { name: '東北ずん子', aliases: '["ずん子","zunko"]', color: '#f59e0b' },
-    { name: '東北きりたん', aliases: '["きりたん","kiritan"]', color: '#ec4899' },
-    { name: '音街ウナ', aliases: '["ウナ","una"]', color: '#06b6d4' },
-    { name: '伊織弓鶴', aliases: '["弓鶴","yuzuru"]', color: '#10b981' },
-    { name: '鷹の爪 吉田くん', aliases: '["吉田","yoshida"]', color: '#f97316' },
-    { name: '水奈瀬コウ', aliases: '["コウ","kou"]', color: '#8b5cf6' },
-    { name: 'IAちゃん', aliases: '["IA","ia"]', color: '#e879f9' },
-    { name: 'OИE', aliases: '["ONE","one"]', color: '#22d3ee' },
-    { name: '月読アイ', aliases: '["アイ","ai"]', color: '#fb7185' },
-    { name: '月読ショウタ', aliases: '["ショウタ","shouta"]', color: '#a3e635' }
-  ]
+  const defaultNames = defaultCharactersData.map((c) => c.name)
 
-  for (const c of defaultCharacters) {
-    db.run('INSERT OR IGNORE INTO characters (name, aliases, color) VALUES (?, ?, ?)', [
-      c.name, c.aliases, c.color
-    ])
+  // Upsert each JSON character: insert if new, update aliases/color/is_default if exists
+  for (const c of defaultCharactersData) {
+    const existing = dbGet<{ id: number }>('SELECT id FROM characters WHERE name = ?', [c.name])
+    if (existing) {
+      db.run(
+        'UPDATE characters SET aliases = ?, color = ?, is_default = 1 WHERE id = ?',
+        [JSON.stringify(c.aliases), c.color, existing.id]
+      )
+    } else {
+      db.run(
+        'INSERT INTO characters (name, aliases, color, is_default) VALUES (?, ?, ?, 1)',
+        [c.name, JSON.stringify(c.aliases), c.color]
+      )
+    }
   }
 
-  const defaultSoftwares = [
-    'VOICEROID2', 'CeVIO AI', 'A.I.VOICE', 'VOICEVOX', 'COEIROINK',
-    'SHAREVOX', 'Synthesizer V', 'その他'
-  ]
-  for (const s of defaultSoftwares) {
+  // Remove old default characters not in JSON that have no voices assigned
+  const placeholders = defaultNames.map(() => '?').join(',')
+  db.run(
+    `DELETE FROM characters
+     WHERE is_default = 1
+       AND name NOT IN (${placeholders})
+       AND id NOT IN (SELECT DISTINCT character_id FROM voices WHERE character_id IS NOT NULL)`,
+    defaultNames
+  )
+
+
+  for (const s of defaultSoftwaresData) {
     db.run('INSERT OR IGNORE INTO softwares (name) VALUES (?)', [s])
   }
 
@@ -610,4 +623,14 @@ export function bulkDeleteVoices(ids: number[]): void {
     dbRun('DELETE FROM voice_tags WHERE voice_id = ?', [id])
     dbRun('DELETE FROM voices WHERE id = ?', [id])
   }
+}
+
+// ─── Folder migration ─────────────────────────────────────────────────────────
+
+export function getAllVoiceFilePaths(): { id: number; file_path: string }[] {
+  return dbAll<{ id: number; file_path: string }>('SELECT id, file_path FROM voices')
+}
+
+export function updateVoiceFilePath(id: number, newFilePath: string): void {
+  dbRun('UPDATE voices SET file_path = ? WHERE id = ?', [newFilePath, id])
 }
