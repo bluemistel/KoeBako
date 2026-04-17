@@ -13,7 +13,8 @@ import {
   FolderTree,
   Tag,
   Users,
-  Pencil
+  Pencil,
+  UserPlus
 } from 'lucide-react'
 import { useStore } from '../../store'
 import { ImportFileInfo, formatFileSize } from '../../types'
@@ -27,6 +28,11 @@ type FileGroup = {
   files: ImportFileInfo[]
   characterOverride: string | null  // null = "use per-file detection"
   groupTagNames: string[]           // folder tag names to apply to this group only
+}
+
+/** 先頭の連番＋区切り文字を除去する (例: "10_残念" → "残念") */
+function stripSerial(name: string): string {
+  return name.replace(/^\d+[_\-\s]+/, '')
 }
 
 export default function ImportDialog() {
@@ -53,11 +59,16 @@ export default function ImportDialog() {
   const [folderTagRenames, setFolderTagRenames] = useState<Map<string, string>>(new Map())
   const [editingFolderTag, setEditingFolderTag] = useState<string | null>(null)
   const [editingTagValue, setEditingTagValue] = useState('')
+  const [stripLeadingNumbers, setStripLeadingNumbers] = useState(true)
   const [globalSoftware, setGlobalSoftware] = useState('')
   const [additionalTagIds, setAdditionalTagIds] = useState<number[]>([])
   const [groups, setGroups] = useState<FileGroup[]>([])
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [fileSkips, setFileSkips] = useState<Set<string>>(new Set()) // sourcePaths to skip
+
+  // New character creation (global)
+  const [isAddingChar, setIsAddingChar] = useState(false)
+  const [newCharName, setNewCharName] = useState('')
 
   // Step 3 state
   const [isImporting, setIsImporting] = useState(false)
@@ -66,6 +77,13 @@ export default function ImportDialog() {
   const isDragging = useRef(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isDraggingOver, setIsDraggingOver] = useState(false)
+
+  /** フォルダ名の表示名を返す（手動リネーム → 連番除去 → そのまま の優先順） */
+  const getDisplayName = (originalName: string): string => {
+    const renamed = folderTagRenames.get(originalName)
+    if (renamed !== undefined) return renamed
+    return stripLeadingNumbers ? stripSerial(originalName) : originalName
+  }
 
   const handleClose = useCallback(() => {
     setShowImportDialog(false)
@@ -79,7 +97,7 @@ export default function ImportDialog() {
     if (!paths.length) return
     const { files, allFolderNames } = await window.api.analyzeFiles(paths)
     setImportPendingFiles(files, allFolderNames)
-    setSelectedFolderTags(new Set()) // default OFF (2-3)
+    setSelectedFolderTags(new Set()) // default OFF
     setFolderTagRenames(new Map())
     e.target.value = ''
   }, [])
@@ -91,7 +109,7 @@ export default function ImportDialog() {
     if (!paths.length) return
     const { files, allFolderNames } = await window.api.analyzeFiles(paths)
     setImportPendingFiles(files, allFolderNames)
-    setSelectedFolderTags(new Set()) // default OFF (2-3)
+    setSelectedFolderTags(new Set()) // default OFF
     setFolderTagRenames(new Map())
   }, [])
 
@@ -109,14 +127,14 @@ export default function ImportDialog() {
       groupKey,
       files,
       characterOverride: null,  // null = use per-file detection
-      groupTagNames: []         // default OFF (2-3)
+      groupTagNames: []
     }))
   }, [importPendingFiles])
 
   const proceedToStep2 = useCallback(() => {
     const g = buildGroups()
     setGroups(g)
-    setSelectedFolderTags(new Set()) // default OFF (2-3)
+    setSelectedFolderTags(new Set())
     setFolderTagRenames(new Map())
     // If only one group and it has a dominant character suggestion, pre-set global
     const allSuggested = importPendingFiles.map((f) => f.suggestedCharacter).filter(Boolean)
@@ -160,9 +178,10 @@ export default function ImportDialog() {
 
   const saveTagRename = (originalName: string) => {
     const trimmed = editingTagValue.trim()
-    if (trimmed && trimmed !== originalName) {
+    const defaultName = stripLeadingNumbers ? stripSerial(originalName) : originalName
+    if (trimmed && trimmed !== defaultName) {
       setFolderTagRenames((prev) => new Map(prev).set(originalName, trimmed))
-    } else if (!trimmed) {
+    } else {
       setFolderTagRenames((prev) => {
         const next = new Map(prev)
         next.delete(originalName)
@@ -203,14 +222,32 @@ export default function ImportDialog() {
     return file.suggestedCharacter ?? null
   }
 
+  /** 新規キャラクターを追加してグローバル選択に反映 */
+  const handleAddCharacter = async () => {
+    const trimmed = newCharName.trim()
+    if (!trimmed) return
+    await window.api.insertCharacter(trimmed)
+    await loadCharacters()
+    setGlobalCharacter(trimmed)
+    setIsAddingChar(false)
+    setNewCharName('')
+  }
+
+  /** FileGroupRow から呼ばれるキャラクター追加コールバック */
+  const handleAddGroupCharacter = useCallback(async (name: string) => {
+    await window.api.insertCharacter(name)
+    await loadCharacters()
+  }, [loadCharacters])
+
   const executeImport = async () => {
     setIsImporting(true)
     try {
-      // Helper: resolve or create tag IDs from a list of original folder names (with renames)
+      // Helper: resolve or create tag IDs (uses strip option and renames)
       const resolveTagIds = async (names: Iterable<string>): Promise<number[]> => {
         const ids: number[] = []
         for (const originalName of names) {
-          const displayName = folderTagRenames.get(originalName) || originalName
+          const displayName = folderTagRenames.get(originalName) ??
+            (stripLeadingNumbers ? stripSerial(originalName) : originalName)
           const existing = useStore.getState().tags.find((t) => t.name === displayName)
           if (existing) {
             ids.push(existing.id)
@@ -335,7 +372,7 @@ export default function ImportDialog() {
                 <DetectedFilesSummary
                   files={importPendingFiles}
                   folderNames={folderNames}
-                  onClear={() => { setImportPendingFiles([]); }}
+                  onClear={() => { setImportPendingFiles([]) }}
                 />
               )}
 
@@ -395,10 +432,49 @@ export default function ImportDialog() {
                     <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
                 </select>
-                {!globalCharacter && (
+                {!globalCharacter && !isAddingChar && (
                   <p className="text-xs text-txt-muted mt-1">
                     未設定の場合、ファイル名・フォルダ名からキャラクターを判定します
                   </p>
+                )}
+
+                {/* Inline new character creation */}
+                {!isAddingChar ? (
+                  <button
+                    onClick={() => setIsAddingChar(true)}
+                    className="flex items-center gap-1 mt-2 text-xs text-txt-muted hover:text-accent-light transition-colors"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    新しいキャラクターを追加
+                  </button>
+                ) : (
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={newCharName}
+                      onChange={(e) => setNewCharName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddCharacter()
+                        if (e.key === 'Escape') { setIsAddingChar(false); setNewCharName('') }
+                      }}
+                      placeholder="キャラクター名を入力"
+                      className="input flex-1 text-sm h-8"
+                    />
+                    <button
+                      onClick={handleAddCharacter}
+                      disabled={!newCharName.trim()}
+                      className="btn-primary text-xs h-8 px-3"
+                    >
+                      追加
+                    </button>
+                    <button
+                      onClick={() => { setIsAddingChar(false); setNewCharName('') }}
+                      className="btn-ghost text-xs h-8 px-2"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -409,12 +485,27 @@ export default function ImportDialog() {
                     <Tag className="w-4 h-4" />
                     フォルダ名をタグとして追加（全ファイル共通）
                   </label>
-                  <p className="text-xs text-txt-muted mb-2.5">
+                  <p className="text-xs text-txt-muted mb-2">
                     チェックしたフォルダ名がタグとして全ファイルに付与されます。鉛筆アイコンで名称変更できます。
                   </p>
+
+                  {/* Strip leading numbers option */}
+                  <label className="flex items-center gap-1.5 mb-2.5 cursor-pointer w-fit">
+                    <input
+                      type="checkbox"
+                      checked={stripLeadingNumbers}
+                      onChange={(e) => setStripLeadingNumbers(e.target.checked)}
+                      className="w-3.5 h-3.5 accent-violet-500"
+                    />
+                    <span className="text-xs text-txt-secondary">
+                      先頭の連番を除いた名前をタグ名にする
+                      <span className="text-txt-muted ml-1">（例: 10_残念 → 残念）</span>
+                    </span>
+                  </label>
+
                   <div className="flex flex-wrap gap-1.5">
                     {folderNames.map((name) => {
-                      const displayName = folderTagRenames.get(name) || name
+                      const displayName = getDisplayName(name)
                       const checked = selectedFolderTags.has(name)
                       const isEditing = editingFolderTag === name
                       if (isEditing) {
@@ -540,12 +631,13 @@ export default function ImportDialog() {
                       characters={characters}
                       fileSkips={fileSkips}
                       folderNames={folderNames}
-                      folderTagRenames={folderTagRenames}
+                      getDisplayName={getDisplayName}
                       expanded={expandedGroups.has(group.groupKey)}
                       onToggleExpand={() => toggleGroupExpand(group.groupKey)}
                       onSetGroupCharacter={(char) => setGroupCharacter(group.groupKey, char)}
                       onToggleFileSkip={toggleFileSkip}
                       onToggleGroupTag={(tagName) => toggleGroupTag(group.groupKey, tagName)}
+                      onAddCharacter={handleAddGroupCharacter}
                     />
                   ))}
                 </div>
@@ -573,7 +665,7 @@ export default function ImportDialog() {
                   <div className="flex justify-between text-txt-secondary">
                     <span>付与タグ</span>
                     <span className="font-medium text-accent-light text-right max-w-[60%] truncate">
-                      {Array.from(selectedFolderTags).join(', ')}
+                      {Array.from(selectedFolderTags).map(getDisplayName).join(', ')}
                     </span>
                   </div>
                 )}
@@ -742,26 +834,39 @@ function FileGroupRow({
   characters,
   fileSkips,
   folderNames,
-  folderTagRenames,
+  getDisplayName,
   expanded,
   onToggleExpand,
   onSetGroupCharacter,
   onToggleFileSkip,
-  onToggleGroupTag
+  onToggleGroupTag,
+  onAddCharacter
 }: {
   group: FileGroup
   globalCharacter: string
   characters: { id: number; name: string; color: string | null }[]
   fileSkips: Set<string>
   folderNames: string[]
-  folderTagRenames: Map<string, string>
+  getDisplayName: (name: string) => string
   expanded: boolean
   onToggleExpand: () => void
   onSetGroupCharacter: (char: string | null) => void
   onToggleFileSkip: (path: string) => void
   onToggleGroupTag: (tagName: string) => void
+  onAddCharacter: (name: string) => Promise<void>
 }) {
   const activeInGroup = group.files.filter((f) => !fileSkips.has(f.sourcePath)).length
+  const [isAddingChar, setIsAddingChar] = useState(false)
+  const [newCharName, setNewCharName] = useState('')
+
+  const handleAddCharacter = async () => {
+    const trimmed = newCharName.trim()
+    if (!trimmed) return
+    await onAddCharacter(trimmed)
+    onSetGroupCharacter(trimmed)
+    setIsAddingChar(false)
+    setNewCharName('')
+  }
 
   return (
     <div className="border border-bg-border rounded-lg overflow-hidden">
@@ -780,7 +885,7 @@ function FileGroupRow({
         </span>
 
         {/* Per-group character override (only shown when no global) */}
-        {!globalCharacter && (
+        {!globalCharacter && !isAddingChar && (
           <select
             value={group.characterOverride ?? ''}
             onChange={(e) => { e.stopPropagation(); onSetGroupCharacter(e.target.value || null) }}
@@ -794,9 +899,54 @@ function FileGroupRow({
             ))}
           </select>
         )}
+
+        {/* Per-group new character button */}
+        {!globalCharacter && !isAddingChar && (
+          <button
+            onClick={(e) => { e.stopPropagation(); setIsAddingChar(true) }}
+            className="shrink-0 p-1 rounded hover:bg-bg-hover text-txt-muted hover:text-accent-light transition-colors"
+            title="新しいキャラクターを追加"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
-      {/* Per-group folder tag assignment (2-2) */}
+      {/* Per-group inline character creation */}
+      {!globalCharacter && isAddingChar && (
+        <div
+          className="px-3 py-2 bg-bg-base border-t border-bg-border flex items-center gap-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <input
+            autoFocus
+            type="text"
+            value={newCharName}
+            onChange={(e) => setNewCharName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddCharacter()
+              if (e.key === 'Escape') { setIsAddingChar(false); setNewCharName('') }
+            }}
+            placeholder="キャラクター名を入力"
+            className="input flex-1 text-xs h-7"
+          />
+          <button
+            onClick={handleAddCharacter}
+            disabled={!newCharName.trim()}
+            className="btn-primary text-xs h-7 px-2.5"
+          >
+            追加
+          </button>
+          <button
+            onClick={() => { setIsAddingChar(false); setNewCharName('') }}
+            className="btn-ghost text-xs h-7 px-1.5"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Per-group folder tag assignment */}
       {folderNames.length > 0 && (
         <div
           className="px-3 py-1.5 bg-bg-base border-t border-bg-border flex flex-wrap gap-1 items-center"
@@ -804,7 +954,7 @@ function FileGroupRow({
         >
           <span className="text-xs text-txt-muted shrink-0 mr-0.5">このグループのタグ:</span>
           {folderNames.map((name) => {
-            const displayName = folderTagRenames.get(name) || name
+            const displayName = getDisplayName(name)
             const isSelected = group.groupTagNames.includes(name)
             return (
               <button
