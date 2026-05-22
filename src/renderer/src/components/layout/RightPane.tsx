@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import WaveSurfer from 'wavesurfer.js'
 import {
   Heart,
   FolderOpen,
@@ -24,6 +25,7 @@ export default function RightPane() {
     selectedVoiceIds,
     currentVoice,
     isPlaying,
+    currentTime,
     tags,
     characters,
     softwares,
@@ -38,8 +40,32 @@ export default function RightPane() {
   } = useStore()
 
   const voice = voices.find((v) => v.id === selectedVoiceId) ?? null
-  const waveformRef = useRef<HTMLDivElement>(null)
-  const wavesurferRef = useRef<any>(null)
+  const wavesurferRef = useRef<WaveSurfer | null>(null)
+  const [wsReady, setWsReady] = useState(false)
+
+  // ref コールバック: div が DOM に現れたとき初期化、消えたとき破棄
+  const waveformRef = useCallback((el: HTMLDivElement | null) => {
+    if (!el) {
+      wavesurferRef.current?.destroy()
+      wavesurferRef.current = null
+      setWsReady(false)
+      return
+    }
+    const ws = WaveSurfer.create({
+      container: el,
+      waveColor: '#2a2a3e',
+      progressColor: '#7c3aed',
+      cursorColor: '#9d63f5',
+      height: 56,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 1,
+      normalize: true,
+      interact: false,
+    })
+    wavesurferRef.current = ws
+    setWsReady(true)
+  }, [])
 
   const [editingMemo, setEditingMemo] = useState(false)
   const [memoValue, setMemoValue] = useState('')
@@ -66,63 +92,32 @@ export default function RightPane() {
     setBulkMemo('')
   }, [selectedVoiceIds.length])
 
-  // Init WaveSurfer
+  // 波形ロード: WaveSurfer が準備完了したとき、または選択音声が変わったとき
   useEffect(() => {
-    if (!waveformRef.current) return
-    let ws: any
-
-    const init = async () => {
-      const WaveSurfer = (await import('wavesurfer.js')).default
-      ws = WaveSurfer.create({
-        container: waveformRef.current!,
-        waveColor: '#2a2a3e',
-        progressColor: '#7c3aed',
-        cursorColor: '#9d63f5',
-        height: 56,
-        barWidth: 2,
-        barGap: 1,
-        barRadius: 1,
-        normalize: true,
-        interact: false,
-        backend: 'WebAudio'
-      })
-      wavesurferRef.current = ws
-    }
-
-    init()
-    return () => {
-      ws?.destroy()
-      wavesurferRef.current = null
-    }
-  }, [])
-
-  // Load waveform when voice changes
-  useEffect(() => {
-    if (!voice) return
     const ws = wavesurferRef.current
-    if (!ws) return
+    if (!ws || !voice) return
 
     const load = async () => {
       try {
         const absPath = await window.api.getAbsolutePath(voice.file_path)
         const fileUrl = absPathToKoebakoUrl(absPath)
-        ws.load(fileUrl)
+        await ws.load(fileUrl)
       } catch (e) {
         console.error('Waveform load error:', e)
       }
     }
     load()
-  }, [voice?.id])
+  }, [voice?.id, wsReady])
 
-  // Sync WaveSurfer play state
+  // カーソル位置を PlayerBar の再生位置に追従（音は出さない）
   useEffect(() => {
     const ws = wavesurferRef.current
-    if (!ws) return
-    if (currentVoice?.id === voice?.id) {
-      if (isPlaying) ws.play()
-      else ws.pause()
+    if (!ws || currentVoice?.id !== voice?.id) return
+    const duration = ws.getDuration()
+    if (duration > 0) {
+      ws.seekTo(Math.min(currentTime / duration, 1))
     }
-  }, [isPlaying, currentVoice?.id, voice?.id])
+  }, [currentTime, currentVoice?.id, voice?.id])
 
   // Memo editing
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from 'react'
+import WaveSurfer from 'wavesurfer.js'
 import { useStore } from '../store'
 import { Voice } from '../types'
 
@@ -131,62 +132,65 @@ export function useWaveSurfer(
   containerRef: React.RefObject<HTMLDivElement>,
   voice: Voice | null
 ) {
-  const wavesurferRef = useRef<import('wavesurfer.js').default | null>(null)
+  const wavesurferRef = useRef<WaveSurfer | null>(null)
   const { setCurrentTime, setPlayerDuration, setIsPlaying, isPlaying, volume } = useStore()
 
   useEffect(() => {
     if (!containerRef.current) return
 
-    let ws: import('wavesurfer.js').default
+    const ws = WaveSurfer.create({
+      container: containerRef.current,
+      waveColor: '#3d3d58',
+      progressColor: '#7c3aed',
+      cursorColor: '#9d63f5',
+      height: 32,
+      barWidth: 2,
+      barGap: 1,
+      barRadius: 2,
+      normalize: true,
+      interact: true,
+    })
 
-    const init = async () => {
-      const WaveSurfer = (await import('wavesurfer.js')).default
+    ws.on('timeupdate', (t) => setCurrentTime(t))
+    ws.on('ready', (d) => setPlayerDuration(d))
+    ws.on('seeking', (t) => setCurrentTime(t))
+    ws.on('finish', () => {
+      setIsPlaying(false)
+      setCurrentTime(0)
+      if (useStore.getState().settings?.continuousPlay === 'true') {
+        useStore.getState().playNext()
+      }
+    })
 
-      ws = WaveSurfer.create({
-        container: containerRef.current!,
-        waveColor: '#3d3d58',
-        progressColor: '#7c3aed',
-        cursorColor: '#9d63f5',
-        height: 56,
-        barWidth: 2,
-        barGap: 1,
-        barRadius: 1,
-        normalize: true,
-        interact: true,
-        backend: 'WebAudio'
-      })
-
-      ws.on('timeupdate', (t) => setCurrentTime(t))
-      ws.on('ready', (d) => setPlayerDuration(d))
-      ws.on('finish', () => setIsPlaying(false))
-      ws.on('seeking', (t) => setCurrentTime(t))
-
-      wavesurferRef.current = ws
-    }
-
-    init()
+    wavesurferRef.current = ws
 
     return () => {
-      ws?.destroy()
+      ws.destroy()
       wavesurferRef.current = null
     }
   }, [])
 
-  // Load new voice
+  // Load new voice and auto-play
   useEffect(() => {
     const ws = wavesurferRef.current
     if (!ws || !voice) return
 
     const load = async () => {
       const absPath = await window.api.getAbsolutePath(voice.file_path)
-      const fileUrl = pathToVoicelabUrl(absPath)
-      ws.load(fileUrl)
+      const fileUrl = pathToKoebakoUrl(absPath)
+      await ws.load(fileUrl)
+      ws.setVolume(volume)
+      await ws.play()
+      setIsPlaying(true)
     }
 
-    load().catch(console.error)
+    load().catch((err) => {
+      console.error('Failed to play audio:', err)
+      setIsPlaying(false)
+    })
   }, [voice?.id])
 
-  // Sync play state
+  // Sync play/pause
   useEffect(() => {
     const ws = wavesurferRef.current
     if (!ws) return
@@ -202,5 +206,17 @@ export function useWaveSurfer(
     wavesurferRef.current?.setVolume(volume)
   }, [volume])
 
-  return wavesurferRef
+  const seek = useCallback((time: number) => {
+    const ws = wavesurferRef.current
+    if (!ws) return
+    const duration = ws.getDuration()
+    if (duration > 0) ws.seekTo(time / duration)
+    setCurrentTime(time)
+  }, [])
+
+  const togglePlay = useCallback(() => {
+    setIsPlaying(!useStore.getState().isPlaying)
+  }, [])
+
+  return { wavesurferRef, seek, togglePlay }
 }

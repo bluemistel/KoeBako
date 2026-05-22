@@ -17,6 +17,7 @@ export default function LeftPane() {
     toggleCharacterFilter,
     toggleTagFilter,
     voices,
+    totalVoices,
     loadUserCategories
   } = useStore()
 
@@ -47,6 +48,10 @@ export default function LeftPane() {
   const commercialCount = voices.filter((v) => v.category === 'commercial').length
   const originalCount = voices.filter((v) => v.category === 'original').length
   const categoryCount = (name: string) => voices.filter((v) => v.category === name).length
+
+  // 500件上限に達している場合はカテゴリ件数に + を付加する
+  const isCapped = totalVoices > voices.length
+  const fmt = (n: number) => isCapped && n > 0 ? `${n}+` : String(n)
 
   const handleAddCategory = async () => {
     const name = newCatName.trim()
@@ -137,7 +142,7 @@ export default function LeftPane() {
         {/* Built-in categories */}
         <CategoryItem
           label="すべて"
-          count={voices.length}
+          count={totalVoices}
           icon={<Music className="w-3.5 h-3.5" />}
           active={filterCategory === 'all'}
           onClick={() => setFilterCategory('all')}
@@ -145,7 +150,7 @@ export default function LeftPane() {
         />
         <CategoryItem
           label="音声素材製品"
-          count={commercialCount}
+          count={fmt(commercialCount)}
           icon={<div className="w-2.5 h-2.5 rounded-full bg-commercial" />}
           active={filterCategory === 'commercial'}
           onClick={() => setFilterCategory('commercial')}
@@ -153,7 +158,7 @@ export default function LeftPane() {
         />
         <CategoryItem
           label="自作音声"
-          count={originalCount}
+          count={fmt(originalCount)}
           icon={<div className="w-2.5 h-2.5 rounded-full bg-original" />}
           active={filterCategory === 'original'}
           onClick={() => setFilterCategory('original')}
@@ -192,7 +197,7 @@ export default function LeftPane() {
             ) : (
               <CategoryItem
                 label={cat.name}
-                count={categoryCount(cat.name)}
+                count={fmt(categoryCount(cat.name))}
                 icon={<div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />}
                 active={filterCategory === cat.name}
                 onClick={() => setFilterCategory(cat.name)}
@@ -299,7 +304,7 @@ function CategoryItem({
   actions
 }: {
   label: string
-  count: number
+  count: string | number
   icon: React.ReactNode
   active: boolean
   onClick: () => void

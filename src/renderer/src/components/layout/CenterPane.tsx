@@ -14,6 +14,7 @@ import { Voice, formatDuration, formatFileSize, parseVoiceTags } from '../../typ
 export default function CenterPane() {
   const {
     voices,
+    totalVoices,
     selectedVoiceId,
     selectedVoiceIds,
     viewMode,
@@ -32,6 +33,8 @@ export default function CenterPane() {
     setImportPendingFiles,
     setShowImportDialog
   } = useStore()
+
+  const isTruncated = totalVoices > voices.length
 
   const [isDraggingFiles, setIsDraggingFiles] = useState(false)
   const dragCounter = useRef(0)
@@ -164,6 +167,8 @@ export default function CenterPane() {
           SortIcon={SortIcon}
           onRowClick={handleRowClick}
           onSort={handleSort}
+          isTruncated={isTruncated}
+          totalVoices={totalVoices}
         />
       ) : (
         <GridView
@@ -172,6 +177,8 @@ export default function CenterPane() {
           currentVoice={currentVoice}
           isPlaying={isPlaying}
           onRowClick={handleRowClick}
+          isTruncated={isTruncated}
+          totalVoices={totalVoices}
         />
       )}
     </div>
@@ -198,6 +205,16 @@ function EmptyState({ onImport }: { onImport: () => void }) {
   )
 }
 
+function TruncatedNotice({ totalVoices, shown }: { totalVoices: number; shown: number }) {
+  return (
+    <div className="flex items-center justify-center gap-1.5 py-3 px-4 text-xs text-txt-muted border-t border-bg-border/50">
+      <span>
+        {shown} 件を表示中 / 全 {totalVoices} 件 — 表示上限（{shown} 件）に達したため、残り {totalVoices - shown} 件は省略されています
+      </span>
+    </div>
+  )
+}
+
 function ListView({
   voices,
   selectedVoiceId,
@@ -207,7 +224,9 @@ function ListView({
   sortBy,
   SortIcon,
   onRowClick,
-  onSort
+  onSort,
+  isTruncated,
+  totalVoices
 }: {
   voices: Voice[]
   selectedVoiceId: number | null
@@ -218,6 +237,8 @@ function ListView({
   SortIcon: React.FC<{ col: any }>
   onRowClick: (voice: Voice, e: React.MouseEvent) => void
   onSort: (col: any) => void
+  isTruncated: boolean
+  totalVoices: number
 }) {
   return (
     <div className="flex flex-col h-full">
@@ -258,6 +279,9 @@ function ListView({
             onClick={(e) => onRowClick(voice, e)}
           />
         ))}
+        {isTruncated && (
+          <TruncatedNotice totalVoices={totalVoices} shown={voices.length} />
+        )}
       </div>
     </div>
   )
@@ -374,13 +398,17 @@ function GridView({
   selectedVoiceId,
   currentVoice,
   isPlaying,
-  onRowClick
+  onRowClick,
+  isTruncated,
+  totalVoices
 }: {
   voices: Voice[]
   selectedVoiceId: number | null
   currentVoice: Voice | null
   isPlaying: boolean
   onRowClick: (voice: Voice, e: React.MouseEvent) => void
+  isTruncated: boolean
+  totalVoices: number
 }) {
   return (
     <div className="flex-1 overflow-y-auto p-3">
@@ -396,6 +424,9 @@ function GridView({
           />
         ))}
       </div>
+      {isTruncated && (
+        <TruncatedNotice totalVoices={totalVoices} shown={voices.length} />
+      )}
     </div>
   )
 }

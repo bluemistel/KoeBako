@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import {
   Play,
   Pause,
@@ -7,11 +7,10 @@ import {
   Volume2,
   VolumeX,
   Music,
-  Heart,
-  Repeat
+  Heart
 } from 'lucide-react'
 import { useStore } from '../../store'
-import { useAudioPlayer } from '../../hooks/useAudioPlayer'
+import { useWaveSurfer } from '../../hooks/useAudioPlayer'
 import { formatDuration } from '../../types'
 
 export default function PlayerBar() {
@@ -21,31 +20,15 @@ export default function PlayerBar() {
     currentTime,
     playerDuration,
     volume,
-    settings,
     setIsPlaying,
     setVolume,
     playNext,
     playPrev,
-    toggleFavorite: toggleFav,
     updateVoiceInList
   } = useStore()
 
-  const { seek, togglePlay } = useAudioPlayer()
-  const progressRef = useRef<HTMLInputElement>(null)
-
-  // Update progress bar CSS custom property
-  useEffect(() => {
-    if (progressRef.current && playerDuration > 0) {
-      const pct = (currentTime / playerDuration) * 100
-      progressRef.current.style.setProperty('--progress', `${pct}%`)
-      progressRef.current.value = String(currentTime)
-    }
-  }, [currentTime, playerDuration])
-
-  const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const t = parseFloat(e.target.value)
-    seek(t)
-  }
+  const waveContainerRef = useRef<HTMLDivElement>(null)
+  const { seek, togglePlay } = useWaveSurfer(waveContainerRef, currentVoice)
 
   const handleToggleFavorite = async () => {
     if (!currentVoice) return
@@ -54,7 +37,7 @@ export default function PlayerBar() {
   }
 
   return (
-    <div className="h-16 bg-bg-surface border-t border-bg-border flex items-center px-4 gap-4 shrink-0">
+    <div className="h-20 bg-bg-surface border-t border-bg-border flex items-center px-4 gap-4 shrink-0">
       {/* Now playing info */}
       <div className="flex items-center gap-3 w-56 shrink-0">
         <div
@@ -101,8 +84,8 @@ export default function PlayerBar() {
         )}
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-col items-center gap-1.5 flex-1 min-w-0">
+      {/* Controls + waveform */}
+      <div className="flex flex-col items-center gap-1 flex-1 min-w-0">
         {/* Buttons */}
         <div className="flex items-center gap-3">
           <button
@@ -134,24 +117,18 @@ export default function PlayerBar() {
           </button>
         </div>
 
-        {/* Progress */}
-        <div className="flex items-center gap-2 w-full max-w-sm">
-          <span className="text-xs text-txt-muted w-10 text-right tabular-nums">
+        {/* Waveform + time */}
+        <div className="flex items-center gap-2 w-full">
+          <span className="text-xs text-txt-muted w-10 text-right tabular-nums shrink-0">
             {formatDuration(currentTime)}
           </span>
-          <input
-            ref={progressRef}
-            type="range"
-            min={0}
-            max={playerDuration || 100}
-            step={0.01}
-            defaultValue={0}
-            disabled={!currentVoice}
-            onChange={handleProgressChange}
-            className="flex-1 progress-bar disabled:opacity-30"
-            style={{ '--progress': '0%' } as React.CSSProperties}
+          <div
+            ref={waveContainerRef}
+            className={`flex-1 rounded overflow-hidden transition-opacity ${
+              currentVoice ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            }`}
           />
-          <span className="text-xs text-txt-muted w-10 tabular-nums">
+          <span className="text-xs text-txt-muted w-10 tabular-nums shrink-0">
             {formatDuration(playerDuration || null)}
           </span>
         </div>
